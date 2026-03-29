@@ -54,5 +54,9 @@ app.use((err, req, res, next) => {
   console.error('💥 Error no manejado:', err);
   res.status(500).json({ success: false, error: 'Error interno del servidor' });
 });
+app.use((req, res, next) => {
+  res.setHeader('Content-Type', 'application/json; charset=utf-8');
+  next();
+});
 
 module.exports = app;

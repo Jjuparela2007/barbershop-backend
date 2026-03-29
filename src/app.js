@@ -14,7 +14,12 @@ const app = express();
 
 // ── Middlewares globales ──────────────────────
 app.use(cors({
-  origin:      clientUrl,
+  origin: [
+    clientUrl,
+    'https://barbershop-frontend-eight.vercel.app',
+    'http://localhost:5174',
+    'http://localhost:5173',
+  ],
   credentials: true,
 }));
 

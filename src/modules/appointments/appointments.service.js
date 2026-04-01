@@ -335,7 +335,8 @@ async function createWalkIn({ barber_id, service_id, client_name, notes }) {
     }
 
     const duration = serviceRows[0].duration_minutes;
-    const now = new Date();
+    // Ajustar a hora Colombia UTC-5
+const now = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/Bogota' }))
     
     // 3. Verificar horario laboral del barbero (sin is_active)
     const dayOfWeek = now.getDay(); // 0 = domingo, 1 = lunes, etc.

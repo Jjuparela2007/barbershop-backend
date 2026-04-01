@@ -309,135 +309,134 @@ async function updateStatus(id, newStatus, changedBy, reason) {
 // ── Venta directa — cliente sin cita previa ────────────────────
 // ── Venta directa — cliente sin cita previa ────────────────────
 async function createWalkIn({ barber_id, service_id, client_name, notes }) {
-  const connection = await pool.getConnection();
-  
+  const connection = await pool.getConnection()
+
   try {
-    await connection.beginTransaction();
-    
+    await connection.beginTransaction()
+
     // 1. Validar barbero
     const [barberRows] = await connection.query(
       'SELECT id FROM users WHERE id = ? AND role = "barber" AND is_active = 1',
       [barber_id]
-    );
-    
+    )
     if (!barberRows || barberRows.length === 0) {
-      throw { status: 404, message: 'Barbero no encontrado o inactivo' };
+      throw { status: 404, message: 'Barbero no encontrado o inactivo' }
     }
-    
+
     // 2. Validar servicio
     const [serviceRows] = await connection.query(
       'SELECT id, duration_minutes, price, name FROM services WHERE id = ? AND is_active = 1',
       [service_id]
-    );
-
+    )
     if (!serviceRows || serviceRows.length === 0) {
-      throw { status: 404, message: 'Servicio no encontrado' };
+      throw { status: 404, message: 'Servicio no encontrado' }
     }
 
-    const duration = serviceRows[0].duration_minutes;
-    // Ajustar a hora Colombia UTC-5
-const now = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/Bogota' }))
-    
-// 3. Verificar horario laboral del barbero
-const dayOfWeek = now.getDay()
-const dayNumber  = dayOfWeek === 0 ? 7 : dayOfWeek
-const currentTime = `${now.getHours().toString().padStart(2,'0')}:${now.getMinutes().toString().padStart(2,'0')}`
+    const duration = serviceRows[0].duration_minutes
 
-const [schedule] = await connection.query(
-  `SELECT start_time, end_time FROM barber_schedules
-   WHERE barber_id = ? AND day_of_week = ?`,
-  [barber_id, dayNumber]
-)
+    // Hora Colombia
+    const now         = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/Bogota' }))
+    const year        = now.getFullYear()
+    const month       = (now.getMonth() + 1).toString().padStart(2, '0')
+    const day         = now.getDate().toString().padStart(2, '0')
+    const date        = `${year}-${month}-${day}`
+    const currentTime = `${now.getHours().toString().padStart(2,'0')}:${now.getMinutes().toString().padStart(2,'0')}`
+    const endMins     = now.getHours() * 60 + now.getMinutes() + duration
+    const end         = `${Math.floor(endMins / 60).toString().padStart(2,'0')}:${(endMins % 60).toString().padStart(2,'0')}`
 
-if (schedule && schedule.length > 0) {
-  const startTime = schedule[0].start_time.slice(0, 5)
-  const endTime   = schedule[0].end_time.slice(0, 5)
-  if (currentTime < startTime || currentTime > endTime) {
-    throw { status: 400, message: `Fuera de horario laboral (${startTime} - ${endTime})` }
-  }
-}
+    console.log('📅 Fecha:', date, '⏰ Hora:', currentTime, '🏁 Fin:', end)
 
-// 4. Verificar cliente genérico
-const [genericClient] = await connection.query(
-  'SELECT id FROM users WHERE id = 1 AND role = "client"'
-)
+    // 3. Verificar horario laboral
+    const dayOfWeek = now.getDay()
+    const dayNumber = dayOfWeek === 0 ? 7 : dayOfWeek
 
-let clientId = 1
+    const [schedule] = await connection.query(
+      'SELECT start_time, end_time FROM barber_schedules WHERE barber_id = ? AND day_of_week = ?',
+      [barber_id, dayNumber]
+    )
 
-if (!genericClient || genericClient.length === 0) {
-  await connection.query(
-    `INSERT INTO users (id, name, email, role, is_active)
-     VALUES (1, 'Walk-in', 'walkin@barbershop.com', 'client', 1)`
-  )
-}
+    console.log('📋 Horario:', schedule)
 
-// 5. Calcular fecha y hora
-const year  = now.getFullYear()
-const month = (now.getMonth() + 1).toString().padStart(2, '0')
-const day   = now.getDate().toString().padStart(2, '0')
-const date  = `${year}-${month}-${day}`
-const start = currentTime
-const endMins = now.getHours() * 60 + now.getMinutes() + duration
-const end   = `${Math.floor(endMins / 60).toString().padStart(2,'0')}:${(endMins % 60).toString().padStart(2,'0')}`
-    
-    // 6. Verificar conflicto de horario
+    if (schedule && schedule.length > 0) {
+      const startTime = schedule[0].start_time.slice(0, 5)
+      const endTime   = schedule[0].end_time.slice(0, 5)
+      console.log('⏰ Rango laboral:', startTime, '-', endTime, '| Ahora:', currentTime)
+      if (currentTime < startTime || currentTime > endTime) {
+        throw { status: 400, message: `Fuera de horario laboral (${startTime} - ${endTime})` }
+      }
+    }
+
+    // 4. Verificar conflicto con citas activas
     const [conflict] = await connection.query(
-      `SELECT id FROM appointments 
-       WHERE barber_id = ? 
-         AND appointment_date = ? 
-         AND status NOT IN ('cancelled')
+      `SELECT id FROM appointments
+       WHERE barber_id = ?
+         AND appointment_date = ?
+         AND status NOT IN ('cancelled', 'no_show')
          AND (
            (start_time <= ? AND end_time > ?) OR
            (start_time < ? AND end_time >= ?)
          )`,
-      [barber_id, date, start, start, end, end]
-    );
-    
+      [barber_id, date, currentTime, currentTime, end, end]
+    )
+
+    console.log('⚠️ Conflictos:', conflict)
+
     if (conflict && conflict.length > 0) {
-      throw { status: 409, message: 'El barbero ya tiene una cita en este horario' };
+      throw { status: 409, message: 'El barbero ya tiene una cita activa en este horario' }
     }
-    
-    // 7. Insertar cita
+
+    // 5. Verificar cliente genérico ID 1
+    const [genericClient] = await connection.query(
+      'SELECT id FROM users WHERE id = 1'
+    )
+
+    if (!genericClient || genericClient.length === 0) {
+      await connection.query(
+        `INSERT INTO users (id, name, email, password_hash, role, is_active)
+         VALUES (1, 'Walk-in', 'walkin@barbershop.com', 'walkin', 'client', 1)`
+      )
+    }
+
+    // 6. Insertar cita
     const [result] = await connection.query(
       `INSERT INTO appointments
        (client_id, barber_id, service_id, appointment_date, start_time, end_time, status, notes, is_walk_in)
-       VALUES (?, ?, ?, ?, ?, ?, 'completed', ?, 1)`,
-      [clientId, barber_id, service_id, date, start, end, `Walk-in: ${client_name || 'sin nombre'}${notes ? ' - ' + notes : ''}`]
-    );
-    
-    // 8. Registrar en log (opcional, si la tabla existe)
+       VALUES (1, ?, ?, ?, ?, ?, 'completed', ?, 1)`,
+      [barber_id, service_id, date, currentTime, end,
+       `Walk-in: ${client_name || 'sin nombre'}${notes ? ' - ' + notes : ''}`]
+    )
+
+    // 7. Log
     try {
       await connection.query(
         `INSERT INTO appointment_status_log (appointment_id, changed_by, old_status, new_status, notes)
          VALUES (?, ?, NULL, 'completed', 'Venta directa walk-in')`,
         [result.insertId, barber_id]
-      );
+      )
     } catch (logError) {
-      console.log('⚠️ Error al registrar log (no crítico):', logError.message);
+      console.log('⚠️ Log no crítico:', logError.message)
     }
-    
-    await connection.commit();
-    
-    // 9. Obtener cita creada
+
+    await connection.commit()
+
+    // 8. Retornar cita creada
     const [rows] = await connection.query(
       `SELECT a.id, a.appointment_date, a.start_time, a.end_time, a.status, a.notes, a.is_walk_in,
-              s.name AS service_name, s.price,
-              u_client.name AS client_name
+              s.name AS service_name, s.price
        FROM appointments a
        JOIN services s ON s.id = a.service_id
-       LEFT JOIN users u_client ON u_client.id = a.client_id
        WHERE a.id = ?`,
       [result.insertId]
-    );
-    
-    return rows[0];
-    
+    )
+
+    return rows[0]
+
   } catch (error) {
-    await connection.rollback();
-    console.error('💥 Error en createWalkIn:', error);
-    throw error;
+    await connection.rollback()
+    console.error('💥 Error en createWalkIn:', error)
+    throw error
   } finally {
-    if (connection) connection.release();
+    connection.release()
   }
 }
 

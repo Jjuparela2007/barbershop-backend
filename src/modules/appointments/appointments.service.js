@@ -338,44 +338,47 @@ async function createWalkIn({ barber_id, service_id, client_name, notes }) {
     // Ajustar a hora Colombia UTC-5
 const now = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/Bogota' }))
     
-    // 3. Verificar horario laboral del barbero (sin is_active)
-    const dayOfWeek = now.getDay(); // 0 = domingo, 1 = lunes, etc.
-    const dayNumber = dayOfWeek === 0 ? 7 : dayOfWeek; // Convertir domingo a 7
-    const currentTime = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
-    
-    const [schedule] = await connection.query(
-      `SELECT start_time, end_time FROM barber_schedules 
-       WHERE barber_id = ? AND day_of_week = ?`,
-      [barber_id, dayNumber]
-    );
-    
-    if (schedule && schedule.length > 0) {
-      if (currentTime < schedule[0].start_time || currentTime > schedule[0].end_time) {
-        throw { status: 400, message: 'El barbero no está en horario laboral en este momento' };
-      }
-    }
-    
-    // 4. Verificar que exista cliente genérico con ID 1
-    const [genericClient] = await connection.query(
-      'SELECT id FROM users WHERE id = 1 AND role = "client"'
-    );
-    
-    let clientId = 1;
-    
-    if (!genericClient || genericClient.length === 0) {
-      // Crear cliente walk-in por defecto
-      await connection.query(
-        `INSERT INTO users (id, name, email, role, is_active) 
-         VALUES (1, 'Walk-in', 'walkin@barbershop.com', 'client', 1)`,
-        []
-      );
-    }
-    
-    // 5. Calcular fecha y hora
-    const date = now.toISOString().split('T')[0];
-    const start = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
-    const endMins = now.getHours() * 60 + now.getMinutes() + duration;
-    const end = `${Math.floor(endMins / 60).toString().padStart(2, '0')}:${(endMins % 60).toString().padStart(2, '0')}`;
+// 3. Verificar horario laboral del barbero
+const dayOfWeek = now.getDay()
+const dayNumber  = dayOfWeek === 0 ? 7 : dayOfWeek
+const currentTime = `${now.getHours().toString().padStart(2,'0')}:${now.getMinutes().toString().padStart(2,'0')}`
+
+const [schedule] = await connection.query(
+  `SELECT start_time, end_time FROM barber_schedules
+   WHERE barber_id = ? AND day_of_week = ?`,
+  [barber_id, dayNumber]
+)
+
+if (schedule && schedule.length > 0) {
+  const startTime = schedule[0].start_time.slice(0, 5)
+  const endTime   = schedule[0].end_time.slice(0, 5)
+  if (currentTime < startTime || currentTime > endTime) {
+    throw { status: 400, message: `Fuera de horario laboral (${startTime} - ${endTime})` }
+  }
+}
+
+// 4. Verificar cliente genérico
+const [genericClient] = await connection.query(
+  'SELECT id FROM users WHERE id = 1 AND role = "client"'
+)
+
+let clientId = 1
+
+if (!genericClient || genericClient.length === 0) {
+  await connection.query(
+    `INSERT INTO users (id, name, email, role, is_active)
+     VALUES (1, 'Walk-in', 'walkin@barbershop.com', 'client', 1)`
+  )
+}
+
+// 5. Calcular fecha y hora
+const year  = now.getFullYear()
+const month = (now.getMonth() + 1).toString().padStart(2, '0')
+const day   = now.getDate().toString().padStart(2, '0')
+const date  = `${year}-${month}-${day}`
+const start = currentTime
+const endMins = now.getHours() * 60 + now.getMinutes() + duration
+const end   = `${Math.floor(endMins / 60).toString().padStart(2,'0')}:${(endMins % 60).toString().padStart(2,'0')}`
     
     // 6. Verificar conflicto de horario
     const [conflict] = await connection.query(

@@ -39,5 +39,22 @@ router.post('/barbers',
 
 // Citas
 router.get('/appointments',   controller.getAllAppointments);
+// Servicios
+const serviceValidation = [
+  body('name')
+    .trim()
+    .notEmpty().withMessage('El nombre es obligatorio'),
+  body('price')
+    .notEmpty().withMessage('El precio es obligatorio')
+    .isFloat({ min: 0 }).withMessage('El precio debe ser un número positivo'),
+  body('duration_minutes')
+    .notEmpty().withMessage('La duración es obligatoria')
+    .isInt({ min: 1 }).withMessage('La duración debe ser mayor a 0'),
+];
+
+router.get('/services',            controller.getServices);
+router.post('/services',           serviceValidation, controller.createService);
+router.put('/services/:id',        serviceValidation, controller.updateService);
+router.delete('/services/:id',     controller.deleteService);
 
 module.exports = router;

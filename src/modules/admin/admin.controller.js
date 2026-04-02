@@ -86,5 +86,54 @@ async function getBarberStats(req, res) {
     return res_.serverError(res, err)
   }
 }
+// ── Servicios ──────────────────────────────────────────────────
+const serviceModel = require('../services/services.service'); // ajusta la ruta a tu modelo
 
-module.exports = { getStats, getAllUsers, toggleUserStatus, createBarber, getAllAppointments, getRevenueStats, getNetRevenue, getBarberStats }
+async function getServices(req, res) {
+  try {
+    const services = await serviceModel.getAll();
+    return res_.ok(res, { services });
+  } catch (err) {
+    return res_.serverError(res, err);
+  }
+}
+
+async function createService(req, res) {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res_.error(res, errors.array()[0].msg, 422);
+  }
+  try {
+    const service = await serviceModel.create(req.body);
+    return res_.created(res, { service });
+  } catch (err) {
+    if (err.status) return res_.error(res, err.message, err.status);
+    return res_.serverError(res, err);
+  }
+}
+
+async function updateService(req, res) {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res_.error(res, errors.array()[0].msg, 422);
+  }
+  try {
+    const service = await serviceModel.update(req.params.id, req.body);
+    return res_.ok(res, { service });
+  } catch (err) {
+    if (err.status) return res_.error(res, err.message, err.status);
+    return res_.serverError(res, err);
+  }
+}
+
+async function deleteService(req, res) {
+  try {
+    const result = await serviceModel.remove(req.params.id);
+    return res_.ok(res, result);
+  } catch (err) {
+    if (err.status) return res_.error(res, err.message, err.status);
+    return res_.serverError(res, err);
+  }
+}
+
+module.exports = { getStats, getAllUsers, toggleUserStatus, createBarber, getAllAppointments, getRevenueStats, getNetRevenue, getBarberStats, getServices, createService, updateService, deleteService, }

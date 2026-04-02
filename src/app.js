@@ -16,7 +16,7 @@ const app = express();
 app.use(cors({
   origin: [
     clientUrl,
-    'https://ajbarbershop-sand.vercel.app/',
+    'https://barbershop-frontend-eight.vercel.app',
     'http://localhost:5174',
     'http://localhost:5173',
   ],

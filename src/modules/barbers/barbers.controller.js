@@ -88,5 +88,15 @@ async function deleteGalleryImage(req, res) {
     return res_.serverError(res, err)
   }
 }
+async function uploadAvatar(req, res) {
+  try {
+    if (!req.file) return res_.error(res, 'No se envió ninguna imagen', 400)
+    const avatarUrl = `/uploads/barbers/${req.file.filename}`
+    await barbersService.updateAvatarUrl(req.params.id, avatarUrl)
+    return res_.ok(res, { avatar_url: avatarUrl })
+  } catch (err) {
+    return res_.serverError(res, err)
+  }
+}
 
-module.exports = { getAll, getById, getSchedule, updateSchedule, addBlockedTime, getGallery, addGalleryImage, deleteGalleryImage }
+module.exports = { getAll, getById, getSchedule, updateSchedule, addBlockedTime, getGallery, addGalleryImage, deleteGalleryImage, uploadAvatar }

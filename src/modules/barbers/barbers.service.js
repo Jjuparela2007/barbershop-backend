@@ -150,5 +150,12 @@ async function deleteGalleryImage(imageId, barberId) {
   await pool.query('DELETE FROM barber_gallery WHERE id = ?', [imageId])
   return { message: 'Imagen eliminada' }
 }
+async function updateAvatarUrl(barberId, avatarUrl) {
+  const [result] = await pool.query(
+    'UPDATE users SET avatar_url = ? WHERE id = ?',
+    [avatarUrl, barberId]
+  )
+  return result
+}
 
-module.exports = { getAll, getById, getSchedule, updateSchedule, addBlockedTime, getGallery, addGalleryImage, deleteGalleryImage }
+module.exports = { getAll, getById, getSchedule, updateSchedule, addBlockedTime, getGallery, addGalleryImage, deleteGalleryImage, updateAvatarUrl }

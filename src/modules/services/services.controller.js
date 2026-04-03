@@ -60,5 +60,18 @@ async function remove(req, res) {
     return res_.serverError(res, err);
   }
 }
+async function uploadServiceImage(req, res) {
+  try {
+    if (!req.file) return res_.error(res, 'No se envió ninguna imagen', 400);
 
-module.exports = { getAll, getById, create, update, remove };
+    const imageUrl = `/uploads/services/${req.file.filename}`;
+    await servicesService.updateImageUrl(req.params.id, imageUrl);
+
+    return res_.ok(res, { image_url: imageUrl });
+  } catch (err) {
+    return res_.serverError(res, err);
+  }
+}
+
+
+module.exports = { getAll, getById, create, update, remove, uploadServiceImage };

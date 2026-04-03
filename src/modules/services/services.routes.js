@@ -3,6 +3,9 @@ const { body }   = require('express-validator');
 const controller = require('./services.controller');
 const { authenticate } = require('../../middlewares/auth.middleware');
 const { authorize }    = require('../../middlewares/role.middleware');
+const { createUploader } = require('../../utils/upload');
+
+const upload = createUploader('services');
 
 const router = Router();
 
@@ -21,13 +24,14 @@ const serviceValidations = [
     .isFloat({ min: 0 }).withMessage('El precio debe ser un número positivo'),
 ];
 
-// Rutas públicas (cualquiera puede ver los servicios)
+// Rutas públicas
 router.get('/',    controller.getAll);
 router.get('/:id', controller.getById);
 
 // Rutas privadas (solo admin)
-router.post(  '/',    authenticate, authorize('admin'), serviceValidations, controller.create);
-router.put(   '/:id', authenticate, authorize('admin'), serviceValidations, controller.update);
-router.delete('/:id', authenticate, authorize('admin'), controller.remove);
+router.post(  '/',          authenticate, authorize('admin'), serviceValidations, controller.create);
+router.put(   '/:id',       authenticate, authorize('admin'), serviceValidations, controller.update);
+router.delete('/:id',       authenticate, authorize('admin'), controller.remove);
+router.post(  '/:id/image', authenticate, authorize('admin'), upload.single('image'), controller.uploadServiceImage);
 
 module.exports = router;

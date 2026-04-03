@@ -1,9 +1,8 @@
 const { pool } = require('../../config/database');
 
-// Obtener todos los servicios activos
 async function getAll() {
   const [rows] = await pool.query(
-    `SELECT id, name, description, duration_minutes, price, display_order
+    `SELECT id, name, description, duration_minutes, price, display_order, image_url
      FROM services
      WHERE is_active = 1
      ORDER BY display_order ASC`
@@ -11,10 +10,9 @@ async function getAll() {
   return rows;
 }
 
-// Obtener un servicio por ID
 async function getById(id) {
   const [rows] = await pool.query(
-    `SELECT id, name, description, duration_minutes, price
+    `SELECT id, name, description, duration_minutes, price, image_url
      FROM services
      WHERE id = ? AND is_active = 1`,
     [id]
@@ -27,7 +25,6 @@ async function getById(id) {
   return rows[0];
 }
 
-// Crear servicio (solo admin)
 async function create({ name, description, duration_minutes, price, display_order }) {
   const [result] = await pool.query(
     `INSERT INTO services (name, description, duration_minutes, price, display_order)
@@ -38,9 +35,8 @@ async function create({ name, description, duration_minutes, price, display_orde
   return getById(result.insertId);
 }
 
-// Actualizar servicio (solo admin)
 async function update(id, fields) {
-  await getById(id); // verifica que existe
+  await getById(id);
 
   const { name, description, duration_minutes, price, display_order } = fields;
 
@@ -54,9 +50,8 @@ async function update(id, fields) {
   return getById(id);
 }
 
-// Desactivar servicio (soft delete, solo admin)
 async function remove(id) {
-  await getById(id); // verifica que existe
+  await getById(id);
 
   await pool.query(
     'UPDATE services SET is_active = 0 WHERE id = ?',
@@ -66,4 +61,12 @@ async function remove(id) {
   return { message: 'Servicio desactivado correctamente' };
 }
 
-module.exports = { getAll, getById, create, update, remove };
+async function updateImageUrl(id, imageUrl) {
+  const [result] = await pool.query(
+    'UPDATE services SET image_url = ? WHERE id = ?',
+    [imageUrl, id]
+  );
+  return result;
+}
+
+module.exports = { getAll, getById, create, update, remove, updateImageUrl };

@@ -91,7 +91,7 @@ async function deleteGalleryImage(req, res) {
 async function uploadAvatar(req, res) {
   try {
     if (!req.file) return res_.error(res, 'No se envió ninguna imagen', 400)
-    const avatarUrl = `/uploads/barbers/${req.file.filename}`
+    const avatarUrl = req.file.path  // Cloudinary devuelve la URL completa aquí
     await barbersService.updateAvatarUrl(req.params.id, avatarUrl)
     return res_.ok(res, { avatar_url: avatarUrl })
   } catch (err) {

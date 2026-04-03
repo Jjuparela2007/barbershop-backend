@@ -64,7 +64,7 @@ async function uploadServiceImage(req, res) {
   try {
     if (!req.file) return res_.error(res, 'No se envió ninguna imagen', 400);
 
-    const imageUrl = `/uploads/services/${req.file.filename}`;
+    const imageUrl = req.file.path  // Cloudinary devuelve la URL completa aquí
     await servicesService.updateImageUrl(req.params.id, imageUrl);
 
     return res_.ok(res, { image_url: imageUrl });

@@ -1,18 +1,21 @@
 const multer = require('multer')
-const path = require('path')
-const fs = require('fs')
+const cloudinary = require('cloudinary').v2
+const { CloudinaryStorage } = require('multer-storage-cloudinary')
+
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET,
+})
 
 const createUploader = (folder) => {
-  const storage = multer.diskStorage({
-    destination: (req, file, cb) => {
-      const dir = `public/uploads/${folder}`
-      fs.mkdirSync(dir, { recursive: true })
-      cb(null, dir)
+  const storage = new CloudinaryStorage({
+    cloudinary,
+    params: {
+      folder: `barberia/${folder}`,
+      allowed_formats: ['jpg', 'jpeg', 'png', 'webp'],
+      transformation: [{ width: 500, height: 500, crop: 'limit' }],
     },
-    filename: (req, file, cb) => {
-      const ext = path.extname(file.originalname)
-      cb(null, `${folder.slice(0, -1)}-${Date.now()}${ext}`)
-    }
   })
 
   return multer({

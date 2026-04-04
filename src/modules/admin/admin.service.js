@@ -38,7 +38,7 @@ async function getStats() {
 // ── Listar todos los usuarios ──────────────────────────────────
 async function getAllUsers({ role, is_active } = {}) {
   let query = `
-    SELECT id, name, email, role, phone, is_active, created_at
+    SELECT id, name, email, role, phone, is_active, created_at, avatar_url
     FROM users
     WHERE 1=1`;
 

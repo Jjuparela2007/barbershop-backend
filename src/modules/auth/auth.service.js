@@ -104,9 +104,80 @@ async function getMe(userId) {
   return rows[0];
 }
 
+// ── Cambiar contraseña ──────────────────────────
+async function changePassword(userId, { currentPassword, newPassword }) {
+  // 1. Buscar usuario y su hash actual
+  const [rows] = await pool.query(
+    'SELECT id, password_hash FROM users WHERE id = ?',
+    [userId]
+  );
+  const user = rows[0];
+
+  if (!user) {
+    throw { status: 404, message: 'Usuario no encontrado' };
+  }
+
+  // 2. Verificar que la contraseña actual sea correcta
+  const isValid = await bcrypt.compare(currentPassword, user.password_hash);
+  if (!isValid) {
+    throw { status: 401, message: 'La contraseña actual es incorrecta' };
+  }
+
+  // 3. No permitir reusar la misma contraseña
+  const isSame = await bcrypt.compare(newPassword, user.password_hash);
+  if (isSame) {
+    throw { status: 400, message: 'La nueva contraseña debe ser diferente a la actual' };
+  }
+
+  // 4. Hashear y guardar la nueva contraseña
+  const password_hash = await bcrypt.hash(newPassword, 10);
+  await pool.query(
+    'UPDATE users SET password_hash = ? WHERE id = ?',
+    [password_hash, userId]
+  );
+
+  return { message: 'Contraseña actualizada correctamente' };
+}
+
+// ── Cambiar correo ───────────────────────────────
+async function changeEmail(userId, { newEmail, currentPassword }) {
+  // 1. Buscar usuario y su hash actual (se pide password para confirmar identidad)
+  const [rows] = await pool.query(
+    'SELECT id, password_hash FROM users WHERE id = ?',
+    [userId]
+  );
+  const user = rows[0];
+
+  if (!user) {
+    throw { status: 404, message: 'Usuario no encontrado' };
+  }
+
+  const isValid = await bcrypt.compare(currentPassword, user.password_hash);
+  if (!isValid) {
+    throw { status: 401, message: 'Contraseña incorrecta' };
+  }
+
+  // 2. Verificar que el nuevo correo no esté ya en uso por otro usuario
+  const [existing] = await pool.query(
+    'SELECT id FROM users WHERE email = ? AND id != ?',
+    [newEmail, userId]
+  );
+  if (existing.length > 0) {
+    throw { status: 409, message: 'Este correo ya está en uso' };
+  }
+
+  // 3. Actualizar el correo
+  await pool.query(
+    'UPDATE users SET email = ? WHERE id = ?',
+    [newEmail, userId]
+  );
+
+  return { message: 'Correo actualizado correctamente', email: newEmail };
+}
+
 // ── Helper privado ─────────────────────────────
 function generateToken(payload) {
   return jwt.sign(payload, jwtCfg.secret, { expiresIn: jwtCfg.expiresIn });
 }
 
-module.exports = { register, login, getMe };
+module.exports = { register, login, getMe, changePassword, changeEmail };

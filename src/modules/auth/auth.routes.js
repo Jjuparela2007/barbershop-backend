@@ -51,4 +51,36 @@ router.post(
 // GET /api/auth/me  ← ruta protegida
 router.get('/me', authenticate, controller.getMe);
 
+// PUT /api/auth/change-password  ← ruta protegida
+router.put(
+  '/change-password',
+  authenticate,
+  [
+    body('currentPassword')
+      .notEmpty().withMessage('Debes ingresar tu contraseña actual'),
+
+    body('newPassword')
+      .notEmpty().withMessage('La nueva contraseña es obligatoria')
+      .isLength({ min: 6 }).withMessage('La nueva contraseña debe tener mínimo 6 caracteres'),
+  ],
+  controller.changePassword
+);
+
+// PUT /api/auth/change-email  ← ruta protegida
+router.put(
+  '/change-email',
+  authenticate,
+  [
+    body('newEmail')
+      .trim()
+      .notEmpty().withMessage('El nuevo correo es obligatorio')
+      .isEmail().withMessage('Correo inválido')
+      .normalizeEmail(),
+
+    body('currentPassword')
+      .notEmpty().withMessage('Debes ingresar tu contraseña para confirmar'),
+  ],
+  controller.changeEmail
+);
+
 module.exports = router;

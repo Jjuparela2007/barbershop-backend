@@ -47,4 +47,38 @@ async function getMe(req, res) {
   }
 }
 
-module.exports = { register, login, getMe };
+// PUT /api/auth/change-password
+async function changePassword(req, res) {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res_.error(res, errors.array()[0].msg, 422);
+  }
+
+  try {
+    const { currentPassword, newPassword } = req.body;
+    const result = await authService.changePassword(req.user.id, { currentPassword, newPassword });
+    return res_.ok(res, result);
+  } catch (err) {
+    if (err.status) return res_.error(res, err.message, err.status);
+    return res_.serverError(res, err);
+  }
+}
+
+// PUT /api/auth/change-email
+async function changeEmail(req, res) {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res_.error(res, errors.array()[0].msg, 422);
+  }
+
+  try {
+    const { newEmail, currentPassword } = req.body;
+    const result = await authService.changeEmail(req.user.id, { newEmail, currentPassword });
+    return res_.ok(res, result);
+  } catch (err) {
+    if (err.status) return res_.error(res, err.message, err.status);
+    return res_.serverError(res, err);
+  }
+}
+
+module.exports = { register, login, getMe, changePassword, changeEmail };
